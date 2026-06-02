@@ -1,4 +1,4 @@
---// Lightweight Auto Parry & Spam for Android/PC //--
+--// OxyoHub Lite - Undetected Auto Parry & Spam //--
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -26,10 +26,10 @@ ScreenGui.Parent = CoreGui
 
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "ToggleBtn"
-ToggleButton.Size = UDim2.new(0, 120, 0, 50)
-ToggleButton.Position = UDim2.new(0.5, -60, 0.1, 0)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(150, 40, 40) -- Starts Red (OFF)
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Size = UDim2.new(0, 140, 0, 50)
+ToggleButton.Position = UDim2.new(0.5, -70, 0.1, 0)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 80, 80) -- Starts Red (OFF)
 ToggleButton.Font = Enum.Font.GothamBold
 ToggleButton.TextSize = 16
 ToggleButton.Text = "OXYO: OFF"
@@ -37,15 +37,15 @@ ToggleButton.AutoButtonColor = true
 ToggleButton.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.CornerRadius = UDim.new(0, 8)
 UICorner.Parent = ToggleButton
 
 local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(255, 255, 255)
+UIStroke.Color = Color3.fromRGB(255, 80, 80)
 UIStroke.Thickness = 2
 UIStroke.Parent = ToggleButton
 
---// UI Dragging Logic (Supports Mobile Touch & PC Mouse) //--
+--// UI Dragging Logic //--
 local dragging, dragStart, startPos
 
 ToggleButton.InputBegan:Connect(function(input)
@@ -76,25 +76,56 @@ end)
 ToggleButton.MouseButton1Click:Connect(function()
     AutoParryEnabled = not AutoParryEnabled
     if AutoParryEnabled then
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 150, 40) -- Green
+        ToggleButton.TextColor3 = Color3.fromRGB(80, 255, 80) -- Green
+        UIStroke.Color = Color3.fromRGB(80, 255, 80)
         ToggleButton.Text = "OXYO: ON"
     else
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(150, 40, 40) -- Red
+        ToggleButton.TextColor3 = Color3.fromRGB(255, 80, 80) -- Red
+        UIStroke.Color = Color3.fromRGB(255, 80, 80)
         ToggleButton.Text = "OXYO: OFF"
     end
 end)
 
---// Core Functions //--
-local function SimulateParry()
+--// Safe Input Execution (Bypasses AC) //--
+local lastClickTime = 0
+
+local function SafeParry()
+    -- Prevent impossible CPS (Clicks Per Second)
+    if tick() - lastClickTime < 0.1 then return end
+    lastClickTime = tick()
+
+    -- Method 1: Try to fire the actual UI button (Most Undetectable)
+    pcall(function()
+        local hotbar = LocalPlayer.PlayerGui:FindFirstChild("Hotbar")
+        local blockBtn = hotbar and hotbar:FindFirstChild("Block")
+        if blockBtn and blockBtn:FindFirstChild("Button") then
+            if firesignal then
+                firesignal(blockBtn.Button.MouseButton1Click)
+                return
+            elseif getconnections then
+                for _, conn in pairs(getconnections(blockBtn.Button.MouseButton1Click)) do
+                    conn:Fire()
+                end
+                return
+            end
+        end
+    end)
+
+    -- Method 2: Humanized Virtual Input (Random coords & hold times)
     if isMobile then
-        mouse1click()
+        if mouse1click then mouse1click() end
     else
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-        task.wait()
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        local rx = math.random(250, 750) -- Random X coord
+        local ry = math.random(250, 750) -- Random Y coord
+        local holdTime = math.random(15, 35) / 1000 -- Hold between 15ms and 35ms
+
+        VirtualInputManager:SendMouseButtonEvent(rx, ry, 0, true, game, 0)
+        task.wait(holdTime)
+        VirtualInputManager:SendMouseButtonEvent(rx, ry, 0, false, game, 0)
     end
 end
 
+--// Calculation Helpers //--
 local function GetBall()
     local balls = Workspace:FindFirstChild("Balls")
     if not balls then return nil end
@@ -129,9 +160,7 @@ local function GetClosestPlayerDist(character)
     return maxDist
 end
 
---// Main Loop //--
-local lastParryTime = 0
-
+--// Main Combat Loop //--
 RunService.PreSimulation:Connect(function()
     if not AutoParryEnabled then return end
 
@@ -144,7 +173,7 @@ RunService.PreSimulation:Connect(function()
     local zoomies = ball:FindFirstChild("zoomies")
     if not zoomies then return end
 
-    -- Only react if the ball is targeting us
+    -- Only check if the ball is targeting you
     if ball:GetAttribute("target") ~= tostring(LocalPlayer) then return end
 
     local velocity = zoomies.VectorVelocity
@@ -154,26 +183,21 @@ RunService.PreSimulation:Connect(function()
     local ping = GetPing()
     local pingAdjust = ping / 10
 
-    --// 1. AUTO SPAM LOGIC //--
-    -- If the ball is extremely fast, very close, and there's another player nearby
+    -- [1] AUTO SPAM LOGIC
     local closestPlayerDist = GetClosestPlayerDist(char)
-    local spamDistanceThreshold = pingAdjust + math.min(speed / 4, 100)
+    local spamDistanceThreshold = pingAdjust + math.min(speed / 3.5, 90)
 
-    if distance < spamDistanceThreshold and speed > 50 and closestPlayerDist < 30 then
-        SimulateParry()
-        return -- Skip standard parry logic to prioritize rapid spam
+    if distance < spamDistanceThreshold and speed > 40 and closestPlayerDist < 25 then
+        SafeParry()
+        return
     end
 
-    --// 2. STANDARD AUTO PARRY LOGIC //--
+    -- [2] AUTO PARRY LOGIC
     local cappedSpeedDifference = math.min(math.max(speed - 9.5, 0), 820)
     local speedDivisorBase = 2.4 + (cappedSpeedDifference * 0.002)
     local parryAccuracy = pingAdjust + math.max(speed / speedDivisorBase, 9.5)
 
     if distance <= parryAccuracy then
-        -- Simple cooldown to prevent overlapping standard swings (Spam bypasses this)
-        if tick() - lastParryTime > 0.15 then
-            SimulateParry()
-            lastParryTime = tick()
-        end
+        SafeParry()
     end
 end)
