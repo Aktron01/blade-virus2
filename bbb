@@ -25,7 +25,7 @@ ScreenGui.Parent = CoreGui
 
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "ToggleBtn"
-ToggleButton.Size = UDim2.new(0, 140, 0, 50)
+ToggleButton.Size = UDim2.new(0, 180, 0, 40)
 ToggleButton.Position = UDim2.new(0.5, -70, 0.1, 0)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 ToggleButton.TextColor3 = Color3.fromRGB(255, 80, 80) -- Starts Red (OFF)
